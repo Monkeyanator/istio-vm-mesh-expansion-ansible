@@ -1,0 +1,5 @@
+- hosts: vms
+  become: yes
+  become_user: root
+  roles:
+    - istio_enabled_vm

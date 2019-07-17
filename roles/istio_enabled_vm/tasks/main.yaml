@@ -1,0 +1,42 @@
+- name: download Istio sidecar deb package
+  get_url:
+    url: https://storage.googleapis.com/istio-release/releases/1.2.2/deb/istio-sidecar.deb
+    dest: /home/{{ lookup('env','USER') }}/istio-sidecar.deb
+
+- name: register Istio deb package
+  shell: dpkg -i /home/{{ lookup('env','USER') }}/istio-sidecar.deb
+
+- name: move generated certs to vm
+  copy: src=certs/{{ item }} dest=/etc/certs
+  with_items:
+    - cert-chain.pem
+    - key.pem
+    - root-cert.pem
+
+- name: move cluter.env to vm
+  copy:
+    src: scripts/cluster.env
+    dest: /var/lib/istio/envoy
+
+- name: add Istio ingressgateway IP to /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ lookup('env','GWIP') }} istio-citadel istio-pilot istio-pilot.istio-system"
+
+- name: transfer ownership of certs to istio-proxy
+  file:
+    path: /etc/certs
+    state: directory
+    recurse: yes
+    owner: istio-proxy
+    group: istio-proxy
+
+- name: start Istio node agent
+  systemd:
+    state: started
+    name: istio-auth-node-agent
+
+- name: start Istio sidecar
+  systemd:
+    state: started
+    name: istio
